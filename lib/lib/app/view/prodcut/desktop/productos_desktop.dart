@@ -83,7 +83,7 @@ class _ProductosDesktopState extends ConsumerState<ProductosDesktop> {
 
     // Valor total del inventario
     final valorTotal = productos.fold<double>(0, (sum, p) => sum + p.precio);
-    stats['valorPromedio'] = valorTotal > 0 ? (valorTotal / productos.length).toInt() : 0;
+    // stats['valorPromedio'] = valorTotal > 0 ? (valorTotal / productos.length).toInt() : 0;
 
     return stats;
   }
@@ -110,10 +110,8 @@ class _ProductosDesktopState extends ConsumerState<ProductosDesktop> {
           _buildStatCard('Categorías', stats['categorias']!, Icons.category, AppColors.accent),
           const SizedBox(width: 16),
           _buildStatCard('Con Imagen', stats['conImagen']!, Icons.image, AppColors.primary),
-          const SizedBox(width: 16),
-          _buildStatCard('Con Código', stats['conCodigoBarras']!, Icons.qr_code, AppColors.accent),
-          const SizedBox(width: 16),
-          _buildStatCard('Precio Prom.', stats['valorPromedio']!, Icons.attach_money, AppColors.primary),
+          // const SizedBox(width: 16),
+          // _buildStatCard('Precio Prom.', stats['valorPromedio']!, Icons.attach_money, AppColors.primary),
         ],
       ),
     );
@@ -431,9 +429,6 @@ class _ProductosDesktopState extends ConsumerState<ProductosDesktop> {
       } else {
         if (await Vibration.hasVibrator() ?? false) {
           Vibration.vibrate(pattern: [0, 300, 100, 300], intensities: [0, 128, 0, 128]);
-        }
-        if (mounted) {
-          _mostrarSnackBar('No se encontró producto con código: $codigoBarras', isError: true);
         }
       }
     } catch (e) {
