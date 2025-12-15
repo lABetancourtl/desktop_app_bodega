@@ -6,6 +6,14 @@ import '../../model/factura_model.dart';
 import '../../service/gestion_entrega_service.dart';
 import '../../theme/app_colors.dart';
 
+// lib/pages/gestion_entregas_page.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../model/factura_model.dart';
+import '../../service/gestion_entrega_service.dart';
+import '../../theme/app_colors.dart';
+
 class GestionEntregasPage extends ConsumerStatefulWidget {
   const GestionEntregasPage({super.key});
 
@@ -16,8 +24,10 @@ class GestionEntregasPage extends ConsumerStatefulWidget {
 class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
   final GestionEntregasService _service = GestionEntregasService();
   List<FacturaModel> _facturasEnRuta = [];
+  List<FacturaModel> _facturasFiltradas = []; // ✅ NUEVO: Lista filtrada
   ResumenEntregas? _resumen;
   bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController(); // ✅ NUEVO: Controlador de búsqueda
 
   @override
   void initState() {
@@ -27,6 +37,7 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
 
   @override
   void dispose() {
+    _searchController.dispose(); // ✅ NUEVO: Limpiar controlador
     super.dispose();
   }
 
@@ -43,6 +54,7 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
 
       setState(() {
         _facturasEnRuta = facturas;
+        _facturasFiltradas = facturas; // ✅ NUEVO: Inicializar lista filtrada
         _resumen = resumen;
         _isLoading = false;
       });
@@ -57,6 +69,28 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
         );
       }
     }
+  }
+
+  // ✅ NUEVO: Método para filtrar facturas
+  void _filtrarFacturas(String query) {
+    if (!mounted) return;
+
+    setState(() {
+      if (query.isEmpty) {
+        _facturasFiltradas = _facturasEnRuta;
+      } else {
+        _facturasFiltradas = _facturasEnRuta.where((factura) {
+          final nombreCliente = factura.nombreCliente.toLowerCase();
+          final negocioCliente = (factura.negocioCliente ?? '').toLowerCase();
+          final direccion = factura.direccionCliente.toLowerCase();
+          final searchLower = query.toLowerCase();
+
+          return nombreCliente.contains(searchLower) ||
+              negocioCliente.contains(searchLower) ||
+              direccion.contains(searchLower);
+        }).toList();
+      }
+    });
   }
 
   void _mostrarModalDetalleFactura(FacturaModel factura) {
@@ -106,6 +140,7 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
         children: [
+          // ✅ NUEVO: Resumen
           if (_resumen != null)
             Container(
               padding: const EdgeInsets.all(16),
@@ -123,23 +158,80 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
                 ],
               ),
             ),
+
+          // ✅ NUEVO: Barra de búsqueda
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar por cliente, negocio o dirección...',
+                hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(Icons.clear, color: AppColors.textSecondary),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filtrarFacturas('');
+                  },
+                )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: _filtrarFacturas,
+            ),
+          ),
+
+          // ✅ MODIFICADO: Usar _facturasFiltradas en lugar de _facturasEnRuta
           Expanded(
-            child: _facturasEnRuta.isEmpty
+            child: _facturasFiltradas.isEmpty
                 ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 64, color: AppColors.success.withOpacity(0.5)),
+                  Icon(
+                    _searchController.text.isEmpty
+                        ? Icons.check_circle_outline
+                        : Icons.search_off,
+                    size: 64,
+                    color: AppColors.success.withOpacity(0.5),
+                  ),
                   const SizedBox(height: 16),
-                  Text('No hay entregas pendientes', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                  Text(
+                    _searchController.text.isEmpty
+                        ? 'No hay entregas pendientes'
+                        : 'No se encontraron resultados',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                  ),
+                  if (_searchController.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        _filtrarFacturas('');
+                      },
+                      child: Text('Limpiar búsqueda'),
+                    ),
+                  ],
                 ],
               ),
             )
                 : ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: _facturasEnRuta.length,
+              itemCount: _facturasFiltradas.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) => _buildFacturaCardSimple(_facturasEnRuta[index]),
+              itemBuilder: (context, index) => _buildFacturaCardSimple(_facturasFiltradas[index]),
             ),
           ),
         ],
@@ -226,6 +318,8 @@ class _GestionEntregasPageState extends ConsumerState<GestionEntregasPage> {
     );
   }
 }
+
+// ... El resto del código (_ModalDetalleFactura) permanece igual
 
 class _ModalDetalleFactura extends StatefulWidget {
   final FacturaModel factura;

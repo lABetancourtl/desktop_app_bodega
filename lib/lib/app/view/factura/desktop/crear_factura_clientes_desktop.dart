@@ -1391,7 +1391,7 @@ class _CrearFacturaDesktopState extends State<CrearFacturaDesktop> {
       observacionesCliente: clienteSeleccionado!.observaciones,
       fecha: DateTime.now(),
       items: carrito,
-      estado: 'pendiente',
+      estado: 'preventa',
       total: carrito.fold(0.0, (sum, item) => sum + item.subtotal),
     );
 

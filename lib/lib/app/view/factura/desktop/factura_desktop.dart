@@ -98,23 +98,23 @@ class _FacturaDesktopState extends ConsumerState<FacturaDesktop> {
       context,
       MaterialPageRoute(builder: (context) => const CrearFacturaPage()),
     );
-    ref.invalidate(facturasProvider);
+    ref.invalidate(facturasStateProvider);
   }
 
-  void _crearFacturaLimpia() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CrearFacturaLimpiaPage()),
-    );
-    ref.invalidate(facturasProvider);
-  }
+  // void _crearFacturaLimpia() async {
+  //   await Navigator.push(
+  //     context,
+  //     MaterialPageRoute(builder: (context) => const CrearFacturaLimpiaPage()),
+  //   );
+  //   ref.invalidate(facturasProvider);
+  // }
 
   void _editarFactura(FacturaModel factura) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditarFacturaPage(factura: factura)),
     );
-    ref.invalidate(facturasProvider);
+    ref.invalidate(facturasStateProvider);
   }
 
   void _confirmarEliminarFactura(FacturaModel factura) {
@@ -153,7 +153,7 @@ class _FacturaDesktopState extends ConsumerState<FacturaDesktop> {
               Navigator.pop(dialogContext);
               try {
                 await dbHelper.eliminarFactura(factura.id!);
-                ref.invalidate(facturasProvider);
+                ref.invalidate(facturasStateProvider);
                 if (context.mounted) {
                   _mostrarSnackBar('Factura eliminada', isSuccess: true);
                 }
@@ -703,7 +703,7 @@ class _FacturaDesktopState extends ConsumerState<FacturaDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    final facturasAsync = ref.watch(facturasProvider);
+    final facturasAsync = ref.watch(facturasStateProvider);
     final facturasFiltradas = ref.watch(facturasFiltradasProvider);
     final fechaState = ref.watch(fechaProvider);
 
@@ -732,184 +732,184 @@ class _FacturaDesktopState extends ConsumerState<FacturaDesktop> {
 
                 // Si la pantalla es muy pequeña (menos de 900px)
                 if (screenWidth < 900) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Solo fecha en versión compacta
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: _seleccionarFecha,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-                            ),
-                            child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
-                          ),
-                        ),
-                      ),
-                      // Menú con todas las opciones
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: AppColors.primary),
-                        tooltip: 'Más opciones',
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'buscar':
-                              _mostrarDialogoBusqueda();
-                              break;
-                            case 'resumen':
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ResumenProductosDiaPage(
-                                    facturas: facturasMostrar,
-                                    fecha: fechaState.fechaSeleccionada,
-                                  ),
-                                ),
-                              );
-                              break;
-                            case 'factura_cliente':
-                              _crearFacturaCliente();
-                              break;
-                            case 'factura_limpia':
-                              _crearFacturaLimpia();
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'buscar',
-                            child: Row(
-                              children: [
-                                Icon(Icons.search, size: 18, color: AppColors.primary),
-                                SizedBox(width: 12),
-                                Text('Buscar cliente'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'resumen',
-                            child: Row(
-                              children: [
-                                Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.primary),
-                                SizedBox(width: 12),
-                                Text('Resumen de productos'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'factura_cliente',
-                            child: Row(
-                              children: [
-                                Icon(Icons.shopping_cart, size: 18, color: AppColors.primary),
-                                SizedBox(width: 12),
-                                Text('Factura a Cliente'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'factura_limpia',
-                            child: Row(
-                              children: [
-                                Icon(Icons.person_add_outlined, size: 18, color: AppColors.accent),
-                                SizedBox(width: 12),
-                                Text('Factura Limpia'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  );
+                  // return Row(
+                  //   mainAxisSize: MainAxisSize.min,
+                  //   children: [
+                  //     // Solo fecha en versión compacta
+                  //     Flexible(
+                  //       child: GestureDetector(
+                  //         onTap: _seleccionarFecha,
+                  //         child: Container(
+                  //           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  //           margin: const EdgeInsets.symmetric(horizontal: 8),
+                  //           decoration: BoxDecoration(
+                  //             color: AppColors.primary.withOpacity(0.08),
+                  //             borderRadius: BorderRadius.circular(10),
+                  //             border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                  //           ),
+                  //           child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     // Menú con todas las opciones
+                  //     PopupMenuButton<String>(
+                  //       icon: const Icon(Icons.more_vert, color: AppColors.primary),
+                  //       tooltip: 'Más opciones',
+                  //       onSelected: (value) {
+                  //         switch (value) {
+                  //           case 'buscar':
+                  //             _mostrarDialogoBusqueda();
+                  //             break;
+                  //           case 'resumen':
+                  //             Navigator.push(
+                  //               context,
+                  //               MaterialPageRoute(
+                  //                 builder: (context) => ResumenProductosDiaPage(
+                  //                   facturas: facturasMostrar,
+                  //                   fecha: fechaState.fechaSeleccionada,
+                  //                 ),
+                  //               ),
+                  //             );
+                  //             break;
+                  //           case 'factura_cliente':
+                  //             _crearFacturaCliente();
+                  //             break;
+                  //           case 'factura_limpia':
+                  //             _crearFacturaLimpia();
+                  //             break;
+                  //         }
+                  //       },
+                  //       itemBuilder: (context) => [
+                  //         const PopupMenuItem(
+                  //           value: 'buscar',
+                  //           child: Row(
+                  //             children: [
+                  //               Icon(Icons.search, size: 18, color: AppColors.primary),
+                  //               SizedBox(width: 12),
+                  //               Text('Buscar cliente'),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //         const PopupMenuItem(
+                  //           value: 'resumen',
+                  //           child: Row(
+                  //             children: [
+                  //               Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.primary),
+                  //               SizedBox(width: 12),
+                  //               Text('Resumen de productos'),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //         const PopupMenuItem(
+                  //           value: 'factura_cliente',
+                  //           child: Row(
+                  //             children: [
+                  //               Icon(Icons.shopping_cart, size: 18, color: AppColors.primary),
+                  //               SizedBox(width: 12),
+                  //               Text('Factura a Cliente'),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //         const PopupMenuItem(
+                  //           value: 'factura_limpia',
+                  //           child: Row(
+                  //             children: [
+                  //               Icon(Icons.person_add_outlined, size: 18, color: AppColors.accent),
+                  //               SizedBox(width: 12),
+                  //               Text('Factura Limpia'),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //     const SizedBox(width: 8),
+                  //   ],
+                  // );
                 }
 
                 // Pantallas medianas (900-1200px) - versión intermedia
-                if (screenWidth < 1200) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Búsqueda más pequeña
-                      Container(
-                        width: 200,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Buscar...',
-                            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                            prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 18),
-                            filled: true,
-                            fillColor: AppColors.background,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: AppColors.border),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: AppColors.border),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                            ),
-                          ),
-                          onChanged: (value) => setState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Fecha compacta
-                      GestureDetector(
-                        onTap: _seleccionarFecha,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Botones como iconos
-                      IconButton(
-                        icon: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
-                        tooltip: 'Resumen de productos',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ResumenProductosDiaPage(
-                                facturas: facturasMostrar,
-                                fecha: fechaState.fechaSeleccionada,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.person_add_outlined, color: AppColors.accent),
-                        tooltip: 'Factura Limpia',
-                        onPressed: _crearFacturaLimpia,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.shopping_cart, color: AppColors.primary),
-                        tooltip: 'Factura a Cliente',
-                        onPressed: _crearFacturaCliente,
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  );
-                }
+                // if (screenWidth < 1200) {
+                //   return Row(
+                //     mainAxisSize: MainAxisSize.min,
+                //     children: [
+                //       // Búsqueda más pequeña
+                //       Container(
+                //         width: 200,
+                //         margin: const EdgeInsets.symmetric(vertical: 8),
+                //         child: TextField(
+                //           controller: _searchController,
+                //           decoration: InputDecoration(
+                //             hintText: 'Buscar...',
+                //             hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                //             prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 18),
+                //             filled: true,
+                //             fillColor: AppColors.background,
+                //             contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                //             border: OutlineInputBorder(
+                //               borderRadius: BorderRadius.circular(10),
+                //               borderSide: BorderSide(color: AppColors.border),
+                //             ),
+                //             enabledBorder: OutlineInputBorder(
+                //               borderRadius: BorderRadius.circular(10),
+                //               borderSide: BorderSide(color: AppColors.border),
+                //             ),
+                //             focusedBorder: OutlineInputBorder(
+                //               borderRadius: BorderRadius.circular(10),
+                //               borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                //             ),
+                //           ),
+                //           onChanged: (value) => setState(() {}),
+                //         ),
+                //       ),
+                //       const SizedBox(width: 12),
+                //       // Fecha compacta
+                //       GestureDetector(
+                //         onTap: _seleccionarFecha,
+                //         child: Container(
+                //           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                //           decoration: BoxDecoration(
+                //             color: AppColors.primary.withOpacity(0.08),
+                //             borderRadius: BorderRadius.circular(10),
+                //             border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                //           ),
+                //           child: const Row(
+                //             children: [
+                //               Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
+                //             ],
+                //           ),
+                //         ),
+                //       ),
+                //       const SizedBox(width: 12),
+                //       // Botones como iconos
+                //       IconButton(
+                //         icon: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                //         tooltip: 'Resumen de productos',
+                //         onPressed: () {
+                //           Navigator.push(
+                //             context,
+                //             MaterialPageRoute(
+                //               builder: (context) => ResumenProductosDiaPage(
+                //                 facturas: facturasMostrar,
+                //                 fecha: fechaState.fechaSeleccionada,
+                //               ),
+                //             ),
+                //           );
+                //         },
+                //       ),
+                //       // IconButton(
+                //       //   icon: const Icon(Icons.person_add_outlined, color: AppColors.accent),
+                //       //   tooltip: 'Factura Limpia',
+                //       //   onPressed: _crearFacturaLimpia,
+                //       // ),
+                //       IconButton(
+                //         icon: const Icon(Icons.shopping_cart, color: AppColors.primary),
+                //         tooltip: 'Factura a Cliente',
+                //         onPressed: _crearFacturaCliente,
+                //       ),
+                //       const SizedBox(width: 16),
+                //     ],
+                //   );
+                // }
 
                 // Pantallas grandes (1200px+) - versión completa
                 return Row(
@@ -1025,7 +1025,7 @@ class _FacturaDesktopState extends ConsumerState<FacturaDesktop> {
               Text('Error: $err', style: const TextStyle(color: AppColors.error)),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.invalidate(facturasProvider),
+                onPressed: () => ref.invalidate(facturasStateProvider),
                 child: const Text('Reintentar'),
               ),
             ],

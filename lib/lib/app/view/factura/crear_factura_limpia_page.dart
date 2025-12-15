@@ -879,16 +879,16 @@
 //   }
 // }
 
-import 'package:flutter/cupertino.dart';
-import 'mobile/crear_factura_limpia_mobile.dart';
-
-
-class CrearFacturaLimpiaPage extends StatelessWidget {
-  const CrearFacturaLimpiaPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-
-    return const CrearFacturaLimpiaMobile();
-  }
-}
+// import 'package:flutter/cupertino.dart';
+// import 'mobile/crear_factura_limpia_mobile.dart';
+//
+//
+// class CrearFacturaLimpiaPage extends StatelessWidget {
+//   const CrearFacturaLimpiaPage({super.key});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//
+//     return const CrearFacturaLimpiaMobile();
+//   }
+// }

@@ -38,13 +38,30 @@ final fechaProvider = StateNotifierProvider<FechaNotifier, FechaState>((ref) {
 });
 
 // ============= PROVIDERS =============
-final facturasProvider = StreamProvider<List<FacturaModel>>((ref) {
-  final dbHelper = DatabaseHelper();
-  return dbHelper.streamFacturas();
+final facturasStateProvider = StateNotifierProvider<FacturasNotifier, AsyncValue<List<FacturaModel>>>((ref) {
+  return FacturasNotifier();
 });
 
+class FacturasNotifier extends StateNotifier<AsyncValue<List<FacturaModel>>> {
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+
+  FacturasNotifier() : super(const AsyncValue.loading()) {
+    cargarFacturas();
+  }
+
+  Future<void> cargarFacturas() async {
+    state = const AsyncValue.loading();
+    try {
+      final facturas = await _dbHelper.obtenerFacturas();
+      state = AsyncValue.data(facturas);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+}
+
 final facturasFiltradasProvider = Provider<List<FacturaModel>>((ref) {
-  final facturasAsync = ref.watch(facturasProvider);
+  final facturasAsync = ref.watch(facturasStateProvider);
   final fechaState = ref.watch(fechaProvider);
 
   return facturasAsync.whenData((facturas) {
@@ -136,7 +153,7 @@ class FacturaMobile extends ConsumerWidget {
         builder: (context) => EditarFacturaPage(factura: factura),
       ),
     );
-    ref.invalidate(facturasProvider);
+    ref.read(facturasStateProvider.notifier).cargarFacturas();
   }
 
   void _eliminarFactura(BuildContext context, WidgetRef ref, FacturaModel factura) {
@@ -174,7 +191,7 @@ class FacturaMobile extends ConsumerWidget {
               Navigator.pop(dialogContext);
               try {
                 await dbHelper.eliminarFactura(factura.id!);
-                ref.invalidate(facturasProvider);
+                ref.read(facturasStateProvider.notifier).cargarFacturas();
                 if (context.mounted) {
                   _mostrarSnackBar(context, 'Factura eliminada', isSuccess: true);
                 }
@@ -550,38 +567,21 @@ class FacturaMobile extends ConsumerWidget {
                 ),
                 child: const Icon(Icons.shopping_cart, color: AppColors.primary, size: 24),
               ),
-              title: const Text('Factura a Clientes', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              subtitle: const Text('Cliente registrado en el sistema', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              title: const Text('Nueva Factura', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              subtitle: const Text('Crear factura para cliente', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                await Navigator.push(
+                // ✅ CAPTURAR EL RESULTADO
+                final resultado = await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const CrearFacturaPage()),
                 );
-                ref.invalidate(facturasProvider);
-              },
-            ),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.person_add_outlined, color: AppColors.primary, size: 24),
-              ),
-              title: const Text('Factura Limpia', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              subtitle: const Text('Cliente ocasional sin registro', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-              trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CrearFacturaLimpiaPage()),
-                );
-                ref.invalidate(facturasProvider);
+                // ✅ SI SE GUARDÓ, INVALIDAR EL PROVIDER
+                if (resultado == true) {
+                  await ref.read(facturasStateProvider.notifier).cargarFacturas();
+                }
+
               },
             ),
             const SizedBox(height: 16),
@@ -638,7 +638,7 @@ class FacturaMobile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final facturasAsync = ref.watch(facturasProvider);
+    final facturasAsync = ref.watch(facturasStateProvider);
     final facturasFiltradas = ref.watch(facturasFiltradasProvider);
     final fechaState = ref.watch(fechaProvider);
 
@@ -672,7 +672,15 @@ class FacturaMobile extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-            onPressed: () => _mostrarMenuFlotante(context, ref),
+            onPressed: () async {
+              final resultado = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CrearFacturaPage()),
+              );
+              if (resultado == true) {
+                await ref.read(facturasStateProvider.notifier).cargarFacturas();
+              }
+            },
             tooltip: 'Nueva factura',
           ),
         ],
@@ -764,7 +772,7 @@ class FacturaMobile extends ConsumerWidget {
                     Text('Error: $err', style: const TextStyle(color: AppColors.error)),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () => ref.invalidate(facturasProvider),
+                      onPressed: () => ref.invalidate(facturasStateProvider),
                       child: const Text('Reintentar'),
                     ),
                   ],
@@ -802,7 +810,12 @@ class FacturaMobile extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: () => _mostrarMenuFlotante(context, ref),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const CrearFacturaPage()),
+                            );
+                          },
                           icon: const Icon(Icons.add, size: 20),
                           label: const Text('Nueva Factura'),
                         ),

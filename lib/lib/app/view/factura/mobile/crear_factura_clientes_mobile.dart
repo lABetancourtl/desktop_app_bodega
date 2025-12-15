@@ -19,6 +19,7 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
 
   ClienteModel? clienteSeleccionado;
   List<ItemFacturaModel> items = [];
+  bool esFacturaLimpia = false; // Determina el tipo de factura
 
   String _formatearPrecio(double precio) {
     final precioInt = precio.toInt();
@@ -51,7 +52,87 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
     );
   }
 
-  void _seleccionarCliente() async {
+  // Mostrar menú de selección de tipo de factura
+  void _mostrarMenuTipoFactura() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Seleccionar Cliente',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person, color: AppColors.primary, size: 24),
+              ),
+              title: const Text('Cliente Registrado', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              subtitle: const Text('Seleccionar de la lista de clientes', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _seleccionarClienteRegistrado();
+              },
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person_add_outlined, color: AppColors.primary, size: 24),
+              ),
+              title: const Text('Factura Limpia', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              subtitle: const Text('Cliente ocasional sin registro', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _mostrarFormularioClienteLimpio();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Seleccionar cliente registrado
+  void _seleccionarClienteRegistrado() async {
     final cliente = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SeleccionarClientePage()),
@@ -60,7 +141,247 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
     if (cliente != null) {
       setState(() {
         clienteSeleccionado = cliente;
+        esFacturaLimpia = false;
       });
+    }
+  }
+
+  // Mostrar formulario para cliente ocasional (factura limpia)
+  void _mostrarFormularioClienteLimpio() async {
+    final formKey = GlobalKey<FormState>();
+    final nombreController = TextEditingController(text: clienteSeleccionado?.nombre ?? '');
+    final negocioController = TextEditingController(text: clienteSeleccionado?.nombreNegocio ?? '');
+    final direccionController = TextEditingController(text: clienteSeleccionado?.direccion ?? '');
+    final telefonoController = TextEditingController(text: clienteSeleccionado?.telefono ?? '');
+    final observacionesController = TextEditingController(text: clienteSeleccionado?.observaciones ?? '');
+
+    final resultado = await showModalBottomSheet<ClienteModel>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.person_add, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Datos del Cliente',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                            Text(
+                              'Ingresa la información del cliente',
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: nombreController,
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Nombre del Cliente',
+                          labelStyle: const TextStyle(color: AppColors.textSecondary),
+                          prefixIcon: const Icon(Icons.person, color: AppColors.primary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'El nombre del cliente es requerido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: negocioController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Nombre del Negocio',
+                          labelStyle: const TextStyle(color: AppColors.textSecondary),
+                          prefixIcon: const Icon(Icons.store, color: AppColors.primary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'El nombre del negocio es requerido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: direccionController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Dirección',
+                          labelStyle: const TextStyle(color: AppColors.textSecondary),
+                          prefixIcon: const Icon(Icons.location_on, color: AppColors.primary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'La dirección es requerida';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: telefonoController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Teléfono',
+                          labelStyle: const TextStyle(color: AppColors.textSecondary),
+                          prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'El teléfono es requerido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: observacionesController,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Observaciones (opcional)',
+                          labelStyle: const TextStyle(color: AppColors.textSecondary),
+                          prefixIcon: const Icon(Icons.note, color: AppColors.primary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: AppColors.border),
+                            ),
+                          ),
+                          child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (formKey.currentState!.validate()) {
+                              final clienteTemporal = ClienteModel(
+                                id: null,
+                                nombre: nombreController.text.trim(),
+                                nombreNegocio: negocioController.text.trim(),
+                                direccion: direccionController.text.trim(),
+                                telefono: telefonoController.text.trim(),
+                                ruta: Ruta.ruta1,
+                                observaciones: observacionesController.text.trim().isEmpty ? null : observacionesController.text.trim(),
+                              );
+                              Navigator.pop(context, clienteTemporal);
+                            }
+                          },
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Guardar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (resultado != null) {
+      setState(() {
+        clienteSeleccionado = resultado;
+        esFacturaLimpia = true;
+      });
+      _mostrarSnackBar('Datos del cliente guardados', isSuccess: true);
     }
   }
 
@@ -154,7 +475,7 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
 
   void _guardarFactura() async {
     if (clienteSeleccionado == null) {
-      _mostrarSnackBar('Por favor selecciona un cliente', isError: true);
+      _mostrarSnackBar('Por favor completa los datos del cliente', isError: true);
       return;
     }
 
@@ -167,7 +488,7 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
     double totalCalculado = items.fold(0, (sum, item) => sum + item.subtotal);
 
     final factura = FacturaModel(
-      clienteId: clienteSeleccionado!.id!,
+      clienteId: esFacturaLimpia ? null : clienteSeleccionado!.id!,
       nombreCliente: clienteSeleccionado!.nombre,
       direccionCliente: clienteSeleccionado!.direccion,
       telefonoCliente: clienteSeleccionado!.telefono,
@@ -175,18 +496,19 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
       observacionesCliente: clienteSeleccionado!.observaciones,
       fecha: DateTime.now(),
       items: items,
-      estado: 'preventa', // ✅ CAMBIADO de 'pendiente' a 'preventa'
+      estado: 'preventa',
       total: totalCalculado,
     );
 
     try {
       await _dbHelper.insertarFactura(factura);
-
       if (mounted) {
         _mostrarSnackBar('Factura guardada para ${clienteSeleccionado!.nombre}', isSuccess: true);
-        Future.delayed(const Duration(seconds: 1), () {
+        // ✅ ESPERAR UN POCO ANTES DE CERRAR para asegurar que se guardó
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
           Navigator.pop(context, true);
-        });
+        }
       }
     } catch (e) {
       _mostrarSnackBar('Error al guardar: $e', isError: true);
@@ -235,265 +557,263 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
     }
 
     return await showModalBottomSheet<ItemFacturaModel>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 40,
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Center(
+                  child: Container(
+                  width: 40,
                     height: 4,
-                    margin: const EdgeInsets.only(top: 12, left: 0, right: 0),
+                    margin: const EdgeInsets.only(top: 12),
                     decoration: BoxDecoration(
                       color: AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
-                  ).wrapCenter(),
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.edit, color: AppColors.primary, size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                producto.nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                '\$${_formatearPrecio(producto.precio)} c/u',
-                                style: const TextStyle(fontSize: 14, color: AppColors.accent),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                  const Divider(height: 1),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (producto.sabores.length == 1) ...[
-                          TextField(
-                            controller: cantidadTotalController,
-                            keyboardType: TextInputType.number,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              labelText: 'Cantidad',
-                              labelStyle: const TextStyle(color: AppColors.textSecondary),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.border),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.edit, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              producto.nombre,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: AppColors.textPrimary,
                               ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                              ),
-                              prefixIcon: const Icon(Icons.inventory, color: AppColors.primary),
                             ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        if (producto.sabores.length > 1) ...[
-                          const Text(
-                            'Distribuir por sabor:',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 16),
-                          ...producto.sabores.map((sabor) {
-                            final controller = controllersPorSabor[sabor]!;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      sabor,
-                                      style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 80,
-                                    child: TextField(
-                                      controller: controller,
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: AppColors.border),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                                        ),
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      onTap: () {
-                                        if (controller.text == '0') {
-                                          controller.clear();
-                                        }
-                                      },
-                                      onChanged: (value) {
-                                        final cantidad = int.tryParse(value) ?? 0;
-                                        cantidadPorSabor[sabor] = cantidad;
-                                        setState(() {});
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          const Divider(height: 24),
-                        ],
-                        // Total
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentLight,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.accent.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    producto.sabores.length == 1
-                                        ? '${int.tryParse(cantidadTotalController.text) ?? 0} unidades'
-                                        : '${calcularTotal()} unidades',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                                  ),
-                                  const Text(
-                                    'TOTAL:',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                producto.sabores.length == 1
-                                    ? '\$${_formatearPrecio((int.tryParse(cantidadTotalController.text) ?? 0) * producto.precio)}'
-                                    : '\$${_formatearPrecio(calcularTotal() * producto.precio)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 22,
-                                  color: AppColors.accent,
-                                ),
-                              ),
-                            ],
-                          ),
+                            Text(
+                              '\$${_formatearPrecio(producto.precio)} c/u',
+                              style: const TextStyle(fontSize: 14, color: AppColors.accent),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // Actions
-                  Padding(
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (producto.sabores.length == 1) ...[
+                        TextField(
+                          controller: cantidadTotalController,
+                          keyboardType: TextInputType.number,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            labelText: 'Cantidad',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColors.border),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                            prefixIcon: const Icon(Icons.inventory, color: AppColors.primary),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (producto.sabores.length > 1) ...[
+                        const Text(
+                          'Distribuir por sabor:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 16),
+                        ...producto.sabores.map((sabor) {
+                          final controller = controllersPorSabor[sabor]!;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    sabor,
+                                    style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 80,
+                                  child: TextField(
+                                    controller: controller,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    decoration: InputDecoration(
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: const BorderSide(color: AppColors.border),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                                      ),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      if (controller.text == '0') {
+                                        controller.clear();
+                                      }
+                                    },
+                                    onChanged: (value) {
+                                      final cantidad = int.tryParse(value) ?? 0;
+                                      cantidadPorSabor[sabor] = cantidad;
+                                      setState(() {});
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        const Divider(height: 24),
+                      ],
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  producto.sabores.length == 1
+                                      ? '${int.tryParse(cantidadTotalController.text) ?? 0} unidades'
+                                      : '${calcularTotal()} unidades',
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                ),
+                                const Text(
+                                  'TOTAL:',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              producto.sabores.length == 1
+                                  ? '\$${_formatearPrecio((int.tryParse(cantidadTotalController.text) ?? 0) * producto.precio)}'
+                                  : '\$${_formatearPrecio(calcularTotal() * producto.precio)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                                color: AppColors.accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     child: Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(color: AppColors.border),
-                              ),
-                            ),
-                            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              int cantidadTotal;
-                              if (producto.sabores.length == 1) {
-                                if (cantidadTotalController.text.isEmpty) {
-                                  _mostrarSnackBar('Por favor ingresa la cantidad', isError: true);
-                                  return;
-                                }
-                                cantidadTotal = int.parse(cantidadTotalController.text);
-                                if (cantidadTotal <= 0) {
-                                  _mostrarSnackBar('La cantidad debe ser mayor a 0', isError: true);
-                                  return;
-                                }
-                              } else {
-                                cantidadTotal = calcularTotal();
-                                if (cantidadTotal <= 0) {
-                                  _mostrarSnackBar('Debes agregar al menos una unidad', isError: true);
-                                  return;
-                                }
-                              }
-                              final itemActualizado = ItemFacturaModel(
-                                productoId: producto.id!,
-                                nombreProducto: producto.nombre,
-                                precioUnitario: producto.precio,
-                                cantidadTotal: cantidadTotal,
-                                cantidadPorSabor: producto.sabores.length > 1
-                                    ? cantidadPorSabor
-                                    : {producto.sabores[0]: cantidadTotal},
-                                tieneSabores: producto.sabores.length > 1,
-                              );
-                              Navigator.pop(context, itemActualizado);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
+                        children: [
+                    Expanded(
+                    child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppColors.border),
                   ),
-                ],
+                ),
+                child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
               ),
-            ),
-          );
-        },
-      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+              child: ElevatedButton(
+              onPressed: () {
+              int cantidadTotal;
+              if (producto.sabores.length == 1) {
+              if (cantidadTotalController.text.isEmpty) {
+              _mostrarSnackBar('Por favor ingresa la cantidad', isError: true);
+              return;
+              }
+              cantidadTotal = int.parse(cantidadTotalController.text);
+              if (cantidadTotal <= 0) {
+              _mostrarSnackBar('La cantidad debe ser mayor a 0', isError: true);
+              return;
+              }
+              } else {
+              cantidadTotal = calcularTotal();
+              if (cantidadTotal <= 0) {
+                _mostrarSnackBar('Debes agregar al menos una unidad', isError: true);
+                return;
+              }
+              }
+              final itemActualizado = ItemFacturaModel(
+                productoId: producto.id!,
+                nombreProducto: producto.nombre,
+                precioUnitario: producto.precio,
+                cantidadTotal: cantidadTotal,
+                cantidadPorSabor: producto.sabores.length > 1
+                    ? cantidadPorSabor
+                    : {producto.sabores[0]: cantidadTotal},
+                tieneSabores: producto.sabores.length > 1,
+              );
+              Navigator.pop(context, itemActualizado);
+              },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              ),
+                        ],
+                    ),
+                ),
+                    ],
+                  ),
+                ),
+              );
+            },
+        ),
     );
   }
 
@@ -507,9 +827,9 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         scrolledUnderElevation: 1,
-        title: const Text(
-          'Nueva Factura',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.textPrimary),
+        title: Text(
+          esFacturaLimpia ? 'Factura Limpia' : 'Nueva Factura',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
@@ -535,7 +855,7 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GestureDetector(
-              onTap: _seleccionarCliente,
+              onTap: _mostrarMenuTipoFactura,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -557,7 +877,9 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        clienteSeleccionado == null ? Icons.person_add : Icons.check_circle,
+                        clienteSeleccionado == null
+                            ? Icons.person_add
+                            : (esFacturaLimpia ? Icons.person_outline : Icons.check_circle),
                         color: clienteSeleccionado == null ? AppColors.primary : AppColors.accent,
                         size: 24,
                       ),
@@ -568,7 +890,9 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            clienteSeleccionado == null ? 'Seleccionar Cliente' : clienteSeleccionado!.nombreNegocio ?? clienteSeleccionado!.nombre,
+                            clienteSeleccionado == null
+                                ? 'Seleccionar Cliente'
+                                : clienteSeleccionado!.nombreNegocio ?? clienteSeleccionado!.nombre,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -578,14 +902,18 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
                           const SizedBox(height: 2),
                           Text(
                             clienteSeleccionado == null
-                                ? 'Toca para seleccionar un cliente'
-                                : clienteSeleccionado!.nombre,
+                                ? 'Toca para seleccionar'
+                                : '${clienteSeleccionado!.nombre}${esFacturaLimpia ? ' (Ocasional)' : ''}',
                             style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    Icon(
+                      clienteSeleccionado == null ? Icons.chevron_right : Icons.edit,
+                      color: clienteSeleccionado == null ? AppColors.textSecondary : AppColors.accent,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -803,12 +1131,5 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
         ],
       ),
     );
-  }
-}
-
-// Extension para centrar widgets
-extension WidgetExtension on Widget {
-  Widget wrapCenter() {
-    return Center(child: this);
   }
 }
