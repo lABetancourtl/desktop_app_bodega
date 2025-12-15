@@ -7,9 +7,6 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../seleccionar_cliente_page.dart';
 
-
-
-
 class CrearFacturaMobile extends StatefulWidget {
   const CrearFacturaMobile({super.key});
 
@@ -68,11 +65,6 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
   }
 
   void _agregarProducto() async {
-    // if (clienteSeleccionado == null) {
-    //   _mostrarSnackBar('Por favor selecciona un cliente primero', isError: true);
-    //   return;
-    // }
-
     final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -183,8 +175,8 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
       observacionesCliente: clienteSeleccionado!.observaciones,
       fecha: DateTime.now(),
       items: items,
-      estado: 'pendiente',
-      total: totalCalculado, // ✅ Agregar el total calculado
+      estado: 'preventa', // ✅ CAMBIADO de 'pendiente' a 'preventa'
+      total: totalCalculado,
     );
 
     try {

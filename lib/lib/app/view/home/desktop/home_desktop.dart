@@ -23,8 +23,8 @@ class _HomeDesktopState extends State<HomeDesktop>
   final List<Widget> _pages = [
     const ClientesDesktop(),
     const ProductosDesktop(),
-    const InventarioDesktop(),
     const FacturaPage(),
+    const InventarioDesktop(),
   ];
 
   final List<NavigationItem> _navigationItems = [
@@ -41,16 +41,16 @@ class _HomeDesktopState extends State<HomeDesktop>
       description: 'Catálogo de productos',
     ),
     NavigationItem(
-      icon: Icons.warehouse_outlined,
-      selectedIcon: Icons.warehouse,
-      label: 'Inventario',
-      description: 'Control de stock',
-    ),
-    NavigationItem(
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
       label: 'Facturas',
       description: 'Facturación y ventas',
+    ),
+    NavigationItem(
+      icon: Icons.warehouse_outlined,
+      selectedIcon: Icons.warehouse,
+      label: 'Inventario',
+      description: 'Control de stock',
     ),
   ];
 

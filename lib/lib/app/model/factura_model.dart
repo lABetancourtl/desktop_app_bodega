@@ -1,3 +1,32 @@
+// lib/model/factura_model.dart
+
+// ============= ESTADOS DE FACTURA =============
+enum EstadoFactura {
+  preventa,              // Factura en preventa (equivale a "en ruta")
+  entregada,            // Productos entregados completamente
+  parcial,              // Entrega parcial con devoluciones
+  cancelada,            // Factura cancelada
+}
+
+extension EstadoFacturaExtension on EstadoFactura {
+  String get nombre {
+    switch (this) {
+      case EstadoFactura.preventa:
+        return 'Preventa';
+      case EstadoFactura.entregada:
+        return 'Entregada';
+      case EstadoFactura.parcial:
+        return 'Parcialmente Entregada';
+      case EstadoFactura.cancelada:
+        return 'Cancelada';
+    }
+  }
+
+  String get valor {
+    return name;
+  }
+}
+
 // ============= ITEM FACTURA MODEL =============
 class ItemFacturaModel {
   final String? id;
@@ -9,6 +38,10 @@ class ItemFacturaModel {
   final Map<String, int> cantidadPorSabor;
   final bool tieneSabores;
 
+  // NUEVOS CAMPOS para gestión de entregas
+  final Map<String, int> cantidadEntregadaPorSabor; // Cantidad realmente entregada por sabor
+  final Map<String, int> cantidadDevueltaPorSabor;  // Cantidad devuelta por sabor
+
   ItemFacturaModel({
     this.id,
     this.facturaId,
@@ -18,9 +51,20 @@ class ItemFacturaModel {
     required this.cantidadTotal,
     this.cantidadPorSabor = const {},
     this.tieneSabores = false,
+    this.cantidadEntregadaPorSabor = const {},
+    this.cantidadDevueltaPorSabor = const {},
   });
 
   double get subtotal => precioUnitario * cantidadTotal;
+
+  // Cantidad total entregada
+  int get cantidadTotalEntregada => cantidadEntregadaPorSabor.values.fold(0, (a, b) => a + b);
+
+  // Cantidad total devuelta
+  int get cantidadTotalDevuelta => cantidadDevueltaPorSabor.values.fold(0, (a, b) => a + b);
+
+  // Cantidad efectivamente vendida
+  int get cantidadVendida => cantidadTotalEntregada;
 
   factory ItemFacturaModel.fromMap(Map<String, dynamic> map) {
     return ItemFacturaModel(
@@ -36,6 +80,16 @@ class ItemFacturaModel {
         ),
       ),
       tieneSabores: map['tiene_sabores'] ?? false,
+      cantidadEntregadaPorSabor: Map<String, int>.from(
+        (map['cantidad_entregada_por_sabor'] ?? {}).map(
+              (key, value) => MapEntry(key, value is int ? value : int.parse(value.toString())),
+        ),
+      ),
+      cantidadDevueltaPorSabor: Map<String, int>.from(
+        (map['cantidad_devuelta_por_sabor'] ?? {}).map(
+              (key, value) => MapEntry(key, value is int ? value : int.parse(value.toString())),
+        ),
+      ),
     );
   }
 
@@ -48,6 +102,8 @@ class ItemFacturaModel {
       'cantidad_total': cantidadTotal,
       'cantidad_por_sabor': cantidadPorSabor,
       'tiene_sabores': tieneSabores,
+      'cantidad_entregada_por_sabor': cantidadEntregadaPorSabor,
+      'cantidad_devuelta_por_sabor': cantidadDevueltaPorSabor,
     };
   }
 
@@ -60,6 +116,8 @@ class ItemFacturaModel {
     int? cantidadTotal,
     Map<String, int>? cantidadPorSabor,
     bool? tieneSabores,
+    Map<String, int>? cantidadEntregadaPorSabor,
+    Map<String, int>? cantidadDevueltaPorSabor,
   }) {
     return ItemFacturaModel(
       id: id ?? this.id,
@@ -70,12 +128,12 @@ class ItemFacturaModel {
       cantidadTotal: cantidadTotal ?? this.cantidadTotal,
       cantidadPorSabor: cantidadPorSabor ?? this.cantidadPorSabor,
       tieneSabores: tieneSabores ?? this.tieneSabores,
+      cantidadEntregadaPorSabor: cantidadEntregadaPorSabor ?? this.cantidadEntregadaPorSabor,
+      cantidadDevueltaPorSabor: cantidadDevueltaPorSabor ?? this.cantidadDevueltaPorSabor,
     );
   }
 }
-
 // ============= FACTURA MODEL =============
-
 class FacturaModel {
   final String? id;
   final String? clienteId;
@@ -89,6 +147,7 @@ class FacturaModel {
   final String estado;
   final double total;
   final List<ItemFacturaModel> items;
+  final DateTime? fechaEntrega;
 
   FacturaModel({
     this.id,
@@ -100,12 +159,28 @@ class FacturaModel {
     this.rutaCliente,
     this.observacionesCliente,
     required this.fecha,
-    this.estado = 'pendiente',
+    this.estado = 'preventa',
     this.total = 0,
     this.items = const [],
+    this.fechaEntrega,
   });
 
+  EstadoFactura get estadoEnum {
+    try {
+      return EstadoFactura.values.firstWhere((e) => e.name == estado);
+    } catch (e) {
+      return EstadoFactura.preventa;
+    }
+  }
+
   factory FacturaModel.fromMap(Map<String, dynamic> map) {
+    List<ItemFacturaModel> items = [];
+    if (map['items'] != null) {
+      items = (map['items'] as List)
+          .map((item) => ItemFacturaModel.fromMap(item))
+          .toList();
+    }
+
     return FacturaModel(
       id: map['id'],
       clienteId: map['cliente_id'],
@@ -116,9 +191,12 @@ class FacturaModel {
       rutaCliente: map['ruta_cliente'],
       observacionesCliente: map['observaciones_cliente'],
       fecha: DateTime.parse(map['fecha']),
-      estado: map['estado'] ?? 'pendiente',
+      estado: map['estado'] ?? 'preventa',
       total: (map['total'] ?? 0).toDouble(),
-      items: [],
+      items: items,
+      fechaEntrega: map['fecha_entrega'] != null
+          ? DateTime.parse(map['fecha_entrega'])
+          : null,
     );
   }
 
@@ -134,6 +212,7 @@ class FacturaModel {
       'fecha': fecha.toIso8601String(),
       'estado': estado,
       'total': total,
+      'fecha_entrega': fechaEntrega?.toIso8601String(),
     };
   }
 
@@ -150,6 +229,7 @@ class FacturaModel {
     String? estado,
     double? total,
     List<ItemFacturaModel>? items,
+    DateTime? fechaEntrega,
   }) {
     return FacturaModel(
       id: id ?? this.id,
@@ -164,8 +244,7 @@ class FacturaModel {
       estado: estado ?? this.estado,
       total: total ?? this.total,
       items: items ?? this.items,
+      fechaEntrega: fechaEntrega ?? this.fechaEntrega,
     );
   }
-
-
 }
