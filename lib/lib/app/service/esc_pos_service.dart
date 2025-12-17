@@ -874,4 +874,196 @@ class EscPosService {
 
     return buffer.toString();
   }
+
+
+  // Agregar este método a la clase EscPosService en esc_pos_service.dart
+
+  /// Genera bytes ESC/POS para el resumen de productos del día
+  static Future<List<int>> generarResumenProductosEscPos(
+      DateTime fecha,
+      Map<String, Map<String, dynamic>> resumenProductos,
+      int totalFacturas,
+      ) async {
+    final profile = await _getCapabilityProfile();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> bytes = [];
+
+    // Calcular totales
+    final productos = resumenProductos.entries.toList();
+    productos.sort((a, b) => (b.value['cantidadTotal'] as int).compareTo(a.value['cantidadTotal'] as int));
+
+    final totalGeneral = productos.fold(0.0, (sum, p) => sum + (p.value['subtotal'] as double));
+    final cantidadTotalProductos = productos.fold(0, (sum, p) => sum + (p.value['cantidadTotal'] as int));
+
+    bytes += generator.reset();
+
+    // ==================== FECHA ====================
+    bytes += generator.text(
+      _formatearFecha(fecha),
+      styles: const PosStyles(
+        align: PosAlign.left,
+        bold: true,
+      ),
+    );
+    bytes += generator.emptyLines(1);
+
+    // ==================== ENCABEZADO ====================
+    bytes += generator.text(
+      'RESUMEN DE PRODUCTOS',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        height: PosTextSize.size1,
+        width: PosTextSize.size1,
+        bold: true,
+      ),
+    );
+    bytes += generator.emptyLines(1);
+
+    // ==================== INFORMACIÓN GENERAL ====================
+    bytes += generator.row([
+      PosColumn(
+        text: 'Facturas:',
+        width: 6,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(
+        text: '$totalFacturas',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+    ]);
+
+    bytes += generator.row([
+      PosColumn(
+        text: 'Total Productos:',
+        width: 6,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(
+        text: '$cantidadTotalProductos',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+    ]);
+
+    bytes += generator.hr(ch: '-');
+
+    // ==================== LISTA DE PRODUCTOS ====================
+    bytes += generator.text(
+      'DETALLE',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+      ),
+    );
+    bytes += generator.hr(ch: '-');
+
+    for (var producto in productos) {
+      final datos = producto.value;
+      final nombreProducto = datos['nombreProducto'] as String;
+      final cantidadTotal = datos['cantidadTotal'] as int;
+      final precioUnitario = datos['precioUnitario'] as double;
+      final subtotal = datos['subtotal'] as double;
+      final tieneSabores = datos['tieneSabores'] as bool;
+      final sabores = datos['sabores'] as Map<String, int>;
+
+      // Nombre y cantidad
+      bytes += generator.row([
+        PosColumn(
+          text: '$cantidadTotal',
+          width: 2,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(
+          text: nombreProducto,
+          width: 6,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(
+          text: '\$${_formatearPrecio(subtotal)}',
+          width: 4,
+          styles: const PosStyles(align: PosAlign.right, bold: true),
+        ),
+      ]);
+
+      // Precio unitario
+      bytes += generator.row([
+        PosColumn(text: '', width: 1),
+        PosColumn(
+          text: '@\$${_formatearPrecio(precioUnitario)} c/u',
+          width: 11,
+          styles: const PosStyles(
+            fontType: PosFontType.fontB,
+            align: PosAlign.left,
+          ),
+        ),
+      ]);
+
+      // Sabores si aplica
+      if (tieneSabores && sabores.isNotEmpty) {
+        bytes += generator.row([
+          PosColumn(text: '', width: 1),
+          PosColumn(
+            text: 'Sabores:',
+            width: 11,
+            styles: const PosStyles(
+              fontType: PosFontType.fontB,
+              bold: true,
+            ),
+          ),
+        ]);
+
+        for (var saborEntry in sabores.entries) {
+          if (saborEntry.value > 0) {
+            bytes += generator.row([
+              PosColumn(text: '', width: 2),
+              PosColumn(
+                text: '${saborEntry.key}:',
+                width: 7,
+                styles: const PosStyles(fontType: PosFontType.fontB),
+              ),
+              PosColumn(
+                text: '${saborEntry.value}',
+                width: 3,
+                styles: const PosStyles(
+                  fontType: PosFontType.fontB,
+                  align: PosAlign.right,
+                ),
+              ),
+            ]);
+          }
+        }
+      }
+
+      bytes += generator.emptyLines(1);
+    }
+
+    bytes += generator.hr(ch: '-');
+
+    // ==================== TOTAL ====================
+    bytes += generator.text(
+      'TOTAL GENERAL',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+      ),
+    );
+
+    bytes += generator.text(
+      '\$${_formatearPrecio(totalGeneral)}',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+        bold: true,
+      ),
+    );
+
+    bytes += generator.emptyLines(1);
+    // ==================== CORTE DE PAPEL ====================
+    bytes += generator.cut();
+    bytes += generator.emptyLines(1);
+
+    return bytes;
+  }
 }
