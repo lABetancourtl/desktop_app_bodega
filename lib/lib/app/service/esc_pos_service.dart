@@ -10,7 +10,23 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../model/factura_model.dart';
 
+enum BluetoothConnectionResult {
+  success,
+  deviceNotFound,
+  connectionFailed,
+  characteristicNotFound,
+  permissionDenied,
+  bluetoothOff,
+  unknownError,
+}
+
 class EscPosService {
+  static BluetoothDevice? _connectedDevice;
+  static BluetoothCharacteristic? _targetCharacteristic;
+  static bool _isConnecting = false;
+  static CapabilityProfile? _cachedProfile;
+
+
   static String _formatearPrecio(double precio) {
     final precioInt = precio.toInt();
     return precioInt.toString().replaceAllMapped(
@@ -20,9 +36,7 @@ class EscPosService {
   }
 
   static String _formatearFecha(DateTime fecha) {
-    // Agregar un día a la fecha
     final fechaMasUnDia = fecha.add(const Duration(days: 1));
-
     return '${fechaMasUnDia.day.toString().padLeft(2, '0')}/'
         '${fechaMasUnDia.month.toString().padLeft(2, '0')}/'
         '${fechaMasUnDia.year}';
@@ -51,60 +65,54 @@ class EscPosService {
     return izquierda + (' ' * espacios) + derecha;
   }
 
+  // <--- NUEVO: Método para cargar el perfil una sola vez --->
+  static Future<CapabilityProfile> _getCapabilityProfile() async {
+    if (_cachedProfile == null) {
+      _cachedProfile = await CapabilityProfile.load();
+    }
+    return _cachedProfile!;
+  }
+
+  // --- Método para generar bytes ESC/POS (modificado para usar el perfil cacheado) ---
   static Future<List<int>> generarTicketEscPos(FacturaModel factura) async {
-    final profile = await CapabilityProfile.load();
+    final profile = await _getCapabilityProfile(); // <--- USAR PERFIL CACHEADO
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
 
     final double total = factura.items.fold(0.0, (sum, item) => sum + item.subtotal);
     final int totalUnidades = factura.items.fold(0, (sum, item) => sum + item.cantidadTotal);
 
-    // ==================== ENCABEZADO ====================
-    bytes += generator.text(
-      'BODEGA',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
-        bold: true,
-      ),
-    );
-
-    bytes += generator.text(
-      'COMPROBANTE DE ENTREGA',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-      ),
-    );
-
-    bytes += generator.hr(ch: '=');
-    bytes += generator.emptyLines(1);
+    bytes += generator.reset();
 
     // ==================== NÚMERO Y FECHA ====================
     bytes += generator.row([
       PosColumn(
-        text: 'No: ${factura.id ?? '0000'}',
-        width: 6,
-        styles: const PosStyles(bold: true, align: PosAlign.left),
-      ),
-      PosColumn(
         text: _formatearFecha(factura.fecha),
         width: 6,
-        styles: const PosStyles(align: PosAlign.right),
+        styles: const PosStyles(align: PosAlign.left),
+      ),
+      PosColumn(
+        text: '',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left),
       ),
     ]);
 
-    // bytes += generator.text(
-    //   'Hora: ${_formatearHora(factura.fecha)}',
-    //   styles: const PosStyles(align: PosAlign.right),
-    // );
-
-    bytes += generator.hr(ch: '-');
+    // ==================== ENCABEZADO ====================
+    bytes += generator.text(
+      'COMPROBANTE DE ENTREGA',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        height: PosTextSize.size1,
+        width: PosTextSize.size1,
+        bold: true,
+      ),
+    );
+    bytes += generator.emptyLines(1);
 
     // ==================== INFORMACIÓN DEL CLIENTE ====================
     bytes += generator.text(
-      'CLIENTE',
+      'DATOS DEL CLIENTE',
       styles: const PosStyles(bold: true),
     );
 
@@ -126,50 +134,72 @@ class EscPosService {
       bytes += generator.text('Ruta: ${factura.rutaCliente}');
     }
 
-    bytes += generator.hr(ch: '=');
+    bytes += generator.hr(ch: '-');
 
     // ==================== PRODUCTOS ====================
     bytes += generator.text(
       'PRODUCTOS',
       styles: const PosStyles(
-        align: PosAlign.center,
+        align: PosAlign.left,
         bold: true,
       ),
     );
 
     bytes += generator.hr(ch: '-');
 
-    // Encabezado de tabla
-    bytes += generator.row([
-      PosColumn(text: 'CANT', width: 2, styles: const PosStyles(bold: true)),
-      PosColumn(text: 'PRODUCTO', width: 6, styles: const PosStyles(bold: true)),
-      PosColumn(
-        text: 'TOTAL',
-        width: 4,
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      ),
-    ]);
+    bytes += generator.setStyles(const PosStyles(
+      bold: false,
+      height: PosTextSize.size1,
+      width: PosTextSize.size1,
+      fontType: PosFontType.fontA,
+      align: PosAlign.left,
+    ));
 
-    bytes += generator.hr(ch: '-');
-
-    // Items de productos
     for (var item in factura.items) {
+      const itemMainLeft = PosStyles(
+        bold: true,
+        height: PosTextSize.size1,
+        width: PosTextSize.size1,
+        fontType: PosFontType.fontA,
+        align: PosAlign.left,
+      );
+      const itemMainRight = PosStyles(
+        bold: true,
+        height: PosTextSize.size1,
+        width: PosTextSize.size1,
+        fontType: PosFontType.fontA,
+        align: PosAlign.right,
+      );
+
       bytes += generator.row([
-        PosColumn(text: '${item.cantidadTotal}', width: 2),
-        PosColumn(text: item.nombreProducto, width: 6),
+        PosColumn(
+          text: '${item.cantidadTotal}',
+          width: 2,
+          styles: itemMainLeft,
+        ),
+        PosColumn(
+          text: item.nombreProducto,
+          width: 6,
+          styles: itemMainLeft,
+        ),
         PosColumn(
           text: '\$${_formatearPrecio(item.subtotal)}',
           width: 4,
-          styles: const PosStyles(align: PosAlign.right),
+          styles: itemMainRight,
         ),
       ]);
 
       bytes += generator.row([
-        PosColumn(text: '', width: 2),
+        PosColumn(text: '', width: 1),
         PosColumn(
           text: '@\$${_formatearPrecio(item.precioUnitario)} c/u',
-          width: 10,
-          styles: const PosStyles(fontType: PosFontType.fontB),
+          width: 11,
+          styles: const PosStyles(
+            fontType: PosFontType.fontB,
+            height: PosTextSize.size1,
+            width: PosTextSize.size1,
+            align: PosAlign.left,
+          ),
         ),
       ]);
 
@@ -181,11 +211,16 @@ class EscPosService {
 
         if (saboresTexto.isNotEmpty) {
           bytes += generator.row([
-            PosColumn(text: '', width: 2),
+            PosColumn(text: '', width: 1),
             PosColumn(
               text: saboresTexto,
-              width: 10,
-              styles: const PosStyles(fontType: PosFontType.fontB),
+              width: 11,
+              styles: const PosStyles(
+                fontType: PosFontType.fontA,
+                height: PosTextSize.size1,
+                width: PosTextSize.size1,
+                align: PosAlign.left,
+              ),
             ),
           ]);
         }
@@ -194,7 +229,7 @@ class EscPosService {
       bytes += generator.emptyLines(1);
     }
 
-    bytes += generator.hr(ch: '=');
+    bytes += generator.hr(ch: '-');
 
     // ==================== RESUMEN ====================
     bytes += generator.row([
@@ -217,7 +252,7 @@ class EscPosService {
       'TOTAL A PAGAR',
       styles: const PosStyles(
         align: PosAlign.center,
-        bold: true,
+        bold: false,
       ),
     );
 
@@ -231,8 +266,6 @@ class EscPosService {
       ),
     );
 
-    bytes += generator.hr(ch: '=');
-
     // ==================== OBSERVACIONES ====================
     if (factura.observacionesCliente != null && factura.observacionesCliente!.isNotEmpty) {
       bytes += generator.emptyLines(1);
@@ -244,121 +277,167 @@ class EscPosService {
       bytes += generator.emptyLines(1);
     }
 
-    // // ==================== FIRMA ====================
-    // bytes += generator.emptyLines(2);
-    // bytes += generator.text(
-    //   '_________________________',
-    //   styles: const PosStyles(align: PosAlign.center),
-    // );
-    // bytes += generator.text(
-    //   'Firma del Cliente',
-    //   styles: const PosStyles(align: PosAlign.center),
-    // );
-    // bytes += generator.emptyLines(1);
-
     // ==================== PIE DE PÁGINA ====================
-    bytes += generator.hr(ch: '-');
     bytes += generator.text(
       'Gracias por su compra',
       styles: const PosStyles(
         align: PosAlign.center,
-        bold: true,
+        bold: false,
       ),
     );
     bytes += generator.text(
       'Novedades: 3105893020',
       styles: const PosStyles(align: PosAlign.center),
     );
-    bytes += generator.emptyLines(1);
-    bytes += generator.text(
-      'Bodega App v1.0',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        fontType: PosFontType.fontB,
-      ),
-    );
 
     // ==================== CORTE DE PAPEL ====================
-    bytes += generator.emptyLines(3);
     bytes += generator.cut();
+    bytes += generator.emptyLines(1);
 
     return bytes;
   }
 
-  /// Imprimir por Bluetooth usando flutter_blue_plus
-  static Future<void> imprimirTicketBluetooth(FacturaModel factura) async {
-    try {
-      final bytes = await generarTicketEscPos(factura);
+  // --- Métodos de conexión/envío (modificados) ---
 
-      // Implementación con flutter_blue_plus
-      // Nota: Debes importar: import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-
-      throw UnimplementedError(
-          'Debes implementar la selección de impresora Bluetooth. '
-              'Ver método imprimirTicketBluetoothConDispositivo()'
-      );
-    } catch (e) {
-      throw Exception('Error al imprimir por Bluetooth: $e');
+  static Future<BluetoothConnectionResult> connectToDevice(BluetoothDevice device) async {
+    if (_isConnecting) {
+      return BluetoothConnectionResult.connectionFailed;
     }
-  }
+    _isConnecting = true;
 
-  /// Imprimir por Bluetooth con dispositivo específico
-  static Future<void> imprimirTicketBluetoothConDispositivo(
-      FacturaModel factura,
-      BluetoothDevice device,
-      ) async {
     try {
-      final bytes = await generarTicketEscPos(factura);
+      if (_connectedDevice != null && _connectedDevice!.remoteId != device.remoteId) {
+        await disconnectPrinter();
+      }
 
-      // Conectar al dispositivo
+      if (_connectedDevice != null && _connectedDevice!.remoteId == device.remoteId && _targetCharacteristic != null) {
+        _isConnecting = false;
+        return BluetoothConnectionResult.success;
+      }
+
       await device.connect(timeout: const Duration(seconds: 10));
+      _connectedDevice = device;
 
-      // Esperar a que esté completamente conectado
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Descubrir servicios
       List<BluetoothService> services = await device.discoverServices();
 
-      // Buscar el servicio de impresión (generalmente el primero)
-      BluetoothCharacteristic? targetCharacteristic;
-
+      BluetoothCharacteristic? foundCharacteristic;
       for (BluetoothService service in services) {
         for (BluetoothCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.write) {
-            targetCharacteristic = characteristic;
+            foundCharacteristic = characteristic;
             break;
           }
         }
-        if (targetCharacteristic != null) break;
+        if (foundCharacteristic != null) break;
       }
 
-      if (targetCharacteristic == null) {
-        throw 'No se encontró una característica de escritura en la impresora';
+      if (foundCharacteristic == null) {
+        await device.disconnect();
+        _connectedDevice = null;
+        _isConnecting = false;
+        return BluetoothConnectionResult.characteristicNotFound;
       }
 
-      // Enviar datos en chunks de 20 bytes (máximo MTU típico)
+      _targetCharacteristic = foundCharacteristic;
+      _isConnecting = false;
+      return BluetoothConnectionResult.success;
+
+    } on FlutterBluePlusException catch (e) {
+      print('Error de FlutterBluePlus al conectar: ${e.code} - ${e.description}'); // Usar .description
+      _connectedDevice = null;
+      _targetCharacteristic = null;
+      _isConnecting = false;
+      return BluetoothConnectionResult.connectionFailed;
+    } catch (e) {
+      print('Error inesperado al conectar: $e');
+      _connectedDevice = null;
+      _targetCharacteristic = null;
+      _isConnecting = false;
+      return BluetoothConnectionResult.unknownError;
+    }
+  }
+
+  /// Envía los bytes ESC/POS a la impresora ya conectada.
+  /// NO incluye la pausa de 2 segundos al final.
+  static Future<BluetoothConnectionResult> sendPrintData(List<int> bytes) async {
+    if (_connectedDevice == null || _targetCharacteristic == null) {
+      return BluetoothConnectionResult.connectionFailed;
+    }
+
+    try {
       const int chunkSize = 20;
       for (int i = 0; i < bytes.length; i += chunkSize) {
         int end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
         List<int> chunk = bytes.sublist(i, end);
 
-        await targetCharacteristic.write(chunk, withoutResponse: true);
-        await Future.delayed(const Duration(milliseconds: 50)); // Pequeña pausa entre chunks
+        await _targetCharacteristic!.write(chunk, withoutResponse: true);
+        // Esta pausa entre chunks es importante para evitar saturar el buffer de la impresora.
+        // Puedes experimentar con reducirla (e.g., 20ms, 10ms) si tu impresora es rápida.
+        await Future.delayed(const Duration(milliseconds: 50));
       }
 
-      // Esperar a que se complete la impresión
-      await Future.delayed(const Duration(seconds: 1));
+      // <--- ELIMINADO: await Future.delayed(const Duration(seconds: 2)); --->
+      // Esta pausa se manejará UNA SOLA VEZ al final de TODAS las impresiones en el UI.
 
-      // Desconectar
-      await device.disconnect();
-
+      return BluetoothConnectionResult.success;
+    } on FlutterBluePlusException catch (e) {
+      print('Error de FlutterBluePlus al enviar datos: ${e.code} - ${e.description}'); // Usar .description
+      return BluetoothConnectionResult.connectionFailed;
     } catch (e) {
-      throw Exception('Error al imprimir por Bluetooth: $e');
+      print('Error inesperado al enviar datos: $e');
+      return BluetoothConnectionResult.unknownError;
     }
   }
 
+  static Future<void> disconnectPrinter() async {
+    if (_connectedDevice != null) {
+      try {
+        await _connectedDevice!.disconnect();
+      } catch (e) {
+        print('Error al desconectar impresora: $e');
+      } finally {
+        _connectedDevice = null;
+        _targetCharacteristic = null;
+        _isConnecting = false;
+      }
+    }
+  }
+
+  static bool isPrinterConnected() {
+    return _connectedDevice != null && _targetCharacteristic != null;
+  }
+
+  // --- El método imprimirTicketBluetoothConDispositivo ya no se usará directamente para el bucle ---
+  // Lo mantengo por si lo usas en otro lugar para una sola factura, pero para el bucle de 50 facturas,
+  // la lógica se moverá al método _imprimirTodasLasFacturas.
+  static Future<void> imprimirTicketBluetoothConDispositivo(
+      FacturaModel factura,
+      BluetoothDevice device,
+      ) async {
+    if (_connectedDevice?.remoteId != device.remoteId || !isPrinterConnected()) {
+      final connectResult = await connectToDevice(device);
+      if (connectResult != BluetoothConnectionResult.success) {
+        throw Exception('Error al conectar con la impresora: ${connectResult.name}');
+      }
+    }
+
+    final bytes = await generarTicketEscPos(factura);
+    final printResult = await sendPrintData(bytes);
+
+    if (printResult != BluetoothConnectionResult.success) {
+      throw Exception('Error al enviar datos a la impresora: ${printResult.name}');
+    }
+    // Para una sola factura, sí podríamos añadir una pausa final aquí si es necesario
+    await Future.delayed(const Duration(seconds: 2)); // Pausa para el corte final
+  }
+
+  // --- Otros métodos (sin cambios) ---
+
   /// Solicitar permisos de Bluetooth
   static Future<bool> solicitarPermisosBluetooth() async {
+    // ... tu implementación actual ...
     if (!Platform.isAndroid) {
       return true; // iOS maneja permisos automáticamente
     }
@@ -389,8 +468,8 @@ class EscPosService {
 
   /// Escanear impresoras Bluetooth disponibles
   static Future<List<BluetoothDevice>> escanearImpresorasBluetooth() async {
+    // ... tu implementación actual ...
     try {
-      // 1. SOLICITAR PERMISOS PRIMERO
       bool permisosOtorgados = await solicitarPermisosBluetooth();
       if (!permisosOtorgados) {
         throw 'Permisos de Bluetooth denegados. Por favor, actívalos en la configuración de la app.';
@@ -398,21 +477,17 @@ class EscPosService {
 
       List<BluetoothDevice> impresoras = [];
 
-      // 2. Verificar si Bluetooth está disponible
       if (await FlutterBluePlus.isSupported == false) {
         throw 'Bluetooth no está soportado en este dispositivo';
       }
 
-      // 3. Verificar si Bluetooth está encendido
       var state = await FlutterBluePlus.adapterState.first;
       if (state != BluetoothAdapterState.on) {
         throw 'Por favor, enciende el Bluetooth en tu dispositivo';
       }
 
-      // 4. Obtener dispositivos ya vinculados (más rápido)
       List<BluetoothDevice> bondedDevices = await FlutterBluePlus.bondedDevices;
 
-      // 5. Filtrar por impresoras (nombres típicos de impresoras térmicas)
       for (var device in bondedDevices) {
         String name = device.platformName.toLowerCase();
         if (name.contains('printer') ||
@@ -425,7 +500,6 @@ class EscPosService {
         }
       }
 
-      // 6. Si no hay dispositivos vinculados, escanear
       if (impresoras.isEmpty) {
         await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
 
@@ -457,14 +531,14 @@ class EscPosService {
 
   /// Generar PDF con formato de ticket 80mm
   static Future<void> descargarTicketPDF(FacturaModel factura) async {
+    // ... tu implementación actual ...
     try {
       final pdf = pw.Document();
       final double total = factura.items.fold(0.0, (sum, item) => sum + item.subtotal);
       final int totalUnidades = factura.items.fold(0, (sum, item) => sum + item.cantidadTotal);
 
-      // Tamaño de papel 80mm (aprox 3.15 pulgadas)
       const double mmToPt = 2.83465;
-      const double pageWidth = 80 * mmToPt; // 80mm
+      const double pageWidth = 80 * mmToPt;
 
       pdf.addPage(
         pw.Page(
@@ -474,7 +548,6 @@ class EscPosService {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // ==================== ENCABEZADO ====================
                 pw.Center(
                   child: pw.Text(
                     'BODEGA',
@@ -497,28 +570,11 @@ class EscPosService {
                 pw.Divider(thickness: 2),
                 pw.SizedBox(height: 8),
 
-                // ==================== NÚMERO Y FECHA ====================
-                // pw.Row(
-                //   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                //   children: [
-                //     pw.Text(
-                //       'No: ${factura.id ?? '0000'}',
-                //       style: pw.TextStyle(
-                //         fontSize: 10,
-                //         fontWeight: pw.FontWeight.bold,
-                //       ),
-                //     ),
-                //     pw.Text(
-                //       _formatearFecha(factura.fecha),
-                //       style: const pw.TextStyle(fontSize: 10),
-                //     ),
-                //   ],
-                // ),
                 pw.Text(
                   _formatearFecha(factura.fecha),
                   style: pw.TextStyle(
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
                   ),
                 ),
                 pw.Text (
@@ -530,7 +586,6 @@ class EscPosService {
 
                 pw.Divider(),
 
-                // ==================== INFORMACIÓN DEL CLIENTE ====================
                 pw.Text(
                   'CLIENTE',
                   style: pw.TextStyle(
@@ -549,7 +604,6 @@ class EscPosService {
                   pw.Text('Ruta: ${factura.rutaCliente}', style: const pw.TextStyle(fontSize: 9)),
                 pw.Divider(thickness: 2),
 
-                // ==================== PRODUCTOS ====================
                 pw.Center(
                   child: pw.Text(
                     'PRODUCTOS',
@@ -561,7 +615,6 @@ class EscPosService {
                 ),
                 pw.Divider(),
 
-                // Encabezado de tabla
                 pw.Row(
                   children: [
                     pw.Expanded(
@@ -583,7 +636,6 @@ class EscPosService {
                 ),
                 pw.Divider(),
 
-                // Items de productos
                 ...factura.items.map((item) {
                   return pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -615,7 +667,7 @@ class EscPosService {
                                 .where((e) => e.value > 0)
                                 .map((e) => '${e.key}(${e.value})')
                                 .join(', '),
-                            style: const pw.TextStyle(fontSize: 8, ), //color: PdfColors.grey700
+                            style: const pw.TextStyle(fontSize: 8, ),
                           ),
                         ),
                       pw.Padding(
@@ -632,7 +684,6 @@ class EscPosService {
 
                 pw.Divider(thickness: 2),
 
-                // ==================== RESUMEN ====================
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -648,7 +699,6 @@ class EscPosService {
                 ),
                 pw.SizedBox(height: 8),
 
-                // ==================== TOTAL ====================
                 pw.Center(
                   child: pw.Text(
                     'TOTAL A PAGAR',
@@ -669,7 +719,6 @@ class EscPosService {
                 ),
                 pw.Divider(thickness: 2),
 
-                // ==================== OBSERVACIONES ====================
                 if (factura.observacionesCliente != null && factura.observacionesCliente!.isNotEmpty) ...[
                   pw.SizedBox(height: 8),
                   pw.Text(
@@ -680,27 +729,6 @@ class EscPosService {
                   pw.SizedBox(height: 8),
                 ],
 
-                // // ==================== FIRMA ====================
-                // pw.SizedBox(height: 16),
-                // pw.Center(
-                //   child: pw.Column(
-                //     children: [
-                //       pw.Container(
-                //         width: 150,
-                //         decoration: const pw.BoxDecoration(
-                //           border: pw.Border(bottom: pw.BorderSide()),
-                //         ),
-                //         child: pw.SizedBox(height: 1),
-                //       ),
-                //       pw.SizedBox(height: 4),
-                //       pw.Text('Firma del Cliente', style: const pw.TextStyle(fontSize: 9)),
-                //     ],
-                //   ),
-                // ),
-                // pw.SizedBox(height: 8),
-
-                // ==================== PIE DE PÁGINA ====================
-                // pw.Divider(),
                 pw.Center(
                   child: pw.Text(
                     'Gracias por su compra',
@@ -729,7 +757,6 @@ class EscPosService {
         ),
       );
 
-      // Guardar y compartir el PDF
       await Printing.sharePdf(
         bytes: await pdf.save(),
         filename: 'Factura_${factura.id ?? 'nueva'}.pdf',
@@ -741,6 +768,7 @@ class EscPosService {
 
   /// Imprimir por WiFi
   static Future<void> imprimirTicketWifi(FacturaModel factura, String ip) async {
+    // ... tu implementación actual ...
     try {
       final bytes = await generarTicketEscPos(factura);
 
@@ -760,6 +788,7 @@ class EscPosService {
 
   /// Generar vista previa del ticket en formato texto
   static String generarVistaPrevia(FacturaModel factura) {
+    // ... tu implementación actual ...
     final StringBuffer buffer = StringBuffer();
     final double total = factura.items.fold(0.0, (sum, item) => sum + item.subtotal);
     final int totalUnidades = factura.items.fold(0, (sum, item) => sum + item.cantidadTotal);
@@ -775,7 +804,6 @@ class EscPosService {
       _formatearFecha(factura.fecha),
       ancho,
     ));
-    // buffer.writeln(_alinearDerecha('Hora: ${_formatearHora(factura.fecha)}', ancho));
     buffer.writeln('-' * ancho);
 
     buffer.writeln('CLIENTE');
@@ -837,9 +865,6 @@ class EscPosService {
 
     buffer.writeln();
     buffer.writeln();
-    // buffer.writeln(_centrar('_________________________', ancho));
-    // buffer.writeln(_centrar('Firma del Cliente', ancho));
-    // buffer.writeln();
     buffer.writeln('-' * ancho);
     buffer.writeln(_centrar('Gracias por su compra', ancho));
     buffer.writeln(_centrar('Novedades: 3105893020', ancho));
