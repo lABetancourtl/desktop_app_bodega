@@ -393,6 +393,9 @@ class _EditarFacturaPageState extends State<EditarFacturaPage> {
       return;
     }
 
+    // ✅ Calcular el total
+    final totalCalculado = items.fold(0.0, (sum, item) => sum + item.subtotal);
+
     final facturaActualizada = FacturaModel(
       id: widget.factura.id,
       clienteId: widget.factura.clienteId,
@@ -402,7 +405,10 @@ class _EditarFacturaPageState extends State<EditarFacturaPage> {
       estado: widget.factura.estado,
       negocioCliente: widget.factura.negocioCliente,
       direccionCliente: widget.factura.direccionCliente,
+      telefonoCliente: widget.factura.telefonoCliente,
       observacionesCliente: widget.factura.observacionesCliente,
+      rutaCliente: widget.factura.rutaCliente,
+      total: totalCalculado,
     );
 
     try {
@@ -410,6 +416,7 @@ class _EditarFacturaPageState extends State<EditarFacturaPage> {
 
       if (mounted) {
         _mostrarSnackBar('Factura actualizada', isSuccess: true);
+        // ✅ Retornar la factura actualizada para que se actualice en la lista
         Navigator.pop(context, facturaActualizada);
       }
     } catch (e) {

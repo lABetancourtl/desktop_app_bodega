@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../datasources/database_helper.dart';
 import '../../../model/cliente_model.dart';
 import '../../../model/factura_model.dart';
@@ -6,15 +8,16 @@ import '../../../view/factura/agregar_prodcuto_factura_page.dart';
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../seleccionar_cliente_page.dart';
+import 'factura_mobile.dart';
 
-class CrearFacturaMobile extends StatefulWidget {
+class CrearFacturaMobile extends ConsumerStatefulWidget {
   const CrearFacturaMobile({super.key});
 
   @override
-  State<CrearFacturaMobile> createState() => _CrearFacturaMobileState();
+  ConsumerState<CrearFacturaMobile> createState() => _CrearFacturaMobileState();
 }
 
-class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
+class _CrearFacturaMobileState extends ConsumerState<CrearFacturaMobile> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
   ClienteModel? clienteSeleccionado;
@@ -157,7 +160,7 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
 
     final resultado = await showModalBottomSheet<ClienteModel>(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // ✅ IMPORTANTE: Permitir scroll
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -165,213 +168,224 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
+        child: DraggableScrollableSheet( // ✅ USAR DraggableScrollableSheet
+          initialChildSize: 0.9, // Tamaño inicial (90% de la pantalla)
+          minChildSize: 0.5,     // Tamaño mínimo (50%)
+          maxChildSize: 0.95,    // Tamaño máximo (95%)
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView( // ✅ Hacer scroll al contenido
+              controller: scrollController,
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(top: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.person_add, color: AppColors.primary, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Datos del Cliente',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                            ),
-                            Text(
-                              'Ingresa la información del cliente',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                          ],
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: nombreController,
-                        autofocus: true,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre del Cliente',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary),
-                          prefixIcon: const Icon(Icons.person, color: AppColors.primary),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El nombre del cliente es requerido';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: negocioController,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre del Negocio',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary),
-                          prefixIcon: const Icon(Icons.store, color: AppColors.primary),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El nombre del negocio es requerido';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: direccionController,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          labelText: 'Dirección',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary),
-                          prefixIcon: const Icon(Icons.location_on, color: AppColors.primary),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'La dirección es requerida';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: telefonoController,
-                        keyboardType: TextInputType.phone,
-                        decoration: InputDecoration(
-                          labelText: 'Teléfono',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary),
-                          prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El teléfono es requerido';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: observacionesController,
-                        textCapitalization: TextCapitalization.sentences,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          labelText: 'Observaciones (opcional)',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary),
-                          prefixIcon: const Icon(Icons.note, color: AppColors.primary),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(color: AppColors.border),
+                            ),
+                            child: const Icon(Icons.person_add, color: AppColors.primary, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Datos del Cliente',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                Text(
+                                  'Ingresa la información del cliente',
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                ),
+                              ],
                             ),
                           ),
-                          child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (formKey.currentState!.validate()) {
-                              final clienteTemporal = ClienteModel(
-                                id: null,
-                                nombre: nombreController.text.trim(),
-                                nombreNegocio: negocioController.text.trim(),
-                                direccion: direccionController.text.trim(),
-                                telefono: telefonoController.text.trim(),
-                                ruta: Ruta.ruta1,
-                                observaciones: observacionesController.text.trim().isEmpty ? null : observacionesController.text.trim(),
-                              );
-                              Navigator.pop(context, clienteTemporal);
-                            }
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Guardar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: nombreController,
+                            autofocus: true,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              labelText: 'Nombre del Cliente',
+                              labelStyle: const TextStyle(color: AppColors.textSecondary),
+                              prefixIcon: const Icon(Icons.person, color: AppColors.primary),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El nombre del cliente es requerido';
+                              }
+                              return null;
+                            },
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: negocioController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              labelText: 'Nombre del Negocio',
+                              labelStyle: const TextStyle(color: AppColors.textSecondary),
+                              prefixIcon: const Icon(Icons.store, color: AppColors.primary),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El nombre del negocio es requerido';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: direccionController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              labelText: 'Dirección',
+                              labelStyle: const TextStyle(color: AppColors.textSecondary),
+                              prefixIcon: const Icon(Icons.location_on, color: AppColors.primary),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'La dirección es requerida';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: telefonoController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Teléfono',
+                              labelStyle: const TextStyle(color: AppColors.textSecondary),
+                              prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El teléfono es requerido';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: observacionesController,
+                            textCapitalization: TextCapitalization.sentences,
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              labelText: 'Observaciones (opcional)',
+                              labelStyle: const TextStyle(color: AppColors.textSecondary),
+                              prefixIcon: const Icon(Icons.note, color: AppColors.primary),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: const BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                              child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (formKey.currentState!.validate()) {
+                                  final clienteTemporal = ClienteModel(
+                                    id: null,
+                                    nombre: nombreController.text.trim(),
+                                    nombreNegocio: negocioController.text.trim(),
+                                    direccion: direccionController.text.trim(),
+                                    telefono: telefonoController.text.trim(),
+                                    ruta: Ruta.ruta1,
+                                    observaciones: observacionesController.text.trim().isEmpty
+                                        ? null
+                                        : observacionesController.text.trim(),
+                                  );
+                                  Navigator.pop(context, clienteTemporal);
+                                }
+                              },
+                              icon: const Icon(Icons.check, size: 18),
+                              label: const Text('Guardar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -501,11 +515,20 @@ class _CrearFacturaMobileState extends State<CrearFacturaMobile> {
     );
 
     try {
-      await _dbHelper.insertarFactura(factura);
+      // Guardar en Supabase y obtener el ID
+      final facturaId = await _dbHelper.insertarFactura(factura);
+
       if (mounted) {
+        // Crear factura con el ID usando copyWith
+        final facturaConId = factura.copyWith(id: facturaId);
+
+        // ✅ AGREGAR SOLO ESTA FACTURA sin recargar todo
+        ref.read(facturasStateProvider.notifier).agregarFactura(facturaConId);
+
         _mostrarSnackBar('Factura guardada para ${clienteSeleccionado!.nombre}', isSuccess: true);
-        // ✅ ESPERAR UN POCO ANTES DE CERRAR para asegurar que se guardó
+
         await Future.delayed(const Duration(milliseconds: 500));
+
         if (mounted) {
           Navigator.pop(context, true);
         }

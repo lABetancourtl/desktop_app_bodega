@@ -249,7 +249,7 @@ class _ResumenProductosDiaPageState extends State<ResumenProductosDiaPage> {
                           color: AppColors.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.print, color: AppColors.primary, size: 20),
+                        child: const Icon(Icons.print_outlined, color: AppColors.primary, size: 20),
                       ),
                       title: Text(
                         impresora.platformName.isNotEmpty ? impresora.platformName : 'Impresora ${index + 1}',

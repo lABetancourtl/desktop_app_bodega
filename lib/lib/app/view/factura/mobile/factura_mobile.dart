@@ -58,6 +58,35 @@ class FacturasNotifier extends StateNotifier<AsyncValue<List<FacturaModel>>> {
       state = AsyncValue.error(error, stackTrace);
     }
   }
+
+  // ✅ AGREGAR UNA NUEVA FACTURA SIN RECARGAR TODO
+  void agregarFactura(FacturaModel factura) {
+    state.whenData((facturas) {
+      final nuevasFacturas = [factura, ...facturas]; // Agregar al inicio
+      state = AsyncValue.data(nuevasFacturas);
+    });
+  }
+
+  // ✅ ACTUALIZAR UNA FACTURA EXISTENTE
+  void actualizarFactura(FacturaModel facturaActualizada) {
+    state.whenData((facturas) {
+      final index = facturas.indexWhere((f) => f.id == facturaActualizada.id);
+      if (index != -1) {
+        final nuevasFacturas = [...facturas];
+        nuevasFacturas[index] = facturaActualizada;
+        nuevasFacturas.sort((a, b) => b.fecha.compareTo(a.fecha)); // Reordenar
+        state = AsyncValue.data(nuevasFacturas);
+      }
+    });
+  }
+
+  // ✅ ELIMINAR UNA FACTURA
+  void eliminarFactura(String facturaId) {
+    state.whenData((facturas) {
+      final nuevasFacturas = facturas.where((f) => f.id != facturaId).toList();
+      state = AsyncValue.data(nuevasFacturas);
+    });
+  }
 }
 
 final facturasFiltradasProvider = Provider<List<FacturaModel>>((ref) {
@@ -146,16 +175,22 @@ class FacturaMobile extends ConsumerWidget {
     }
   }
 
+// EDITAR FACTURA
   void _editarFactura(BuildContext context, WidgetRef ref, FacturaModel factura) async {
-    await Navigator.push(
+    final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EditarFacturaPage(factura: factura),
       ),
     );
-    ref.read(facturasStateProvider.notifier).cargarFacturas();
+
+
+    if (resultado != null && resultado is FacturaModel) {
+      ref.read(facturasStateProvider.notifier).actualizarFactura(resultado);
+    }
   }
 
+// ELIMINAR FACTURA
   void _eliminarFactura(BuildContext context, WidgetRef ref, FacturaModel factura) {
     final dbHelper = DatabaseHelper();
     showDialog(
@@ -190,12 +225,19 @@ class FacturaMobile extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
+                // Primero eliminar del estado
+                ref.read(facturasStateProvider.notifier).eliminarFactura(factura.id!);
+
+                // Luego eliminar de Supabase
                 await dbHelper.eliminarFactura(factura.id!);
-                ref.read(facturasStateProvider.notifier).cargarFacturas();
+
                 if (context.mounted) {
                   _mostrarSnackBar(context, 'Factura eliminada', isSuccess: true);
                 }
               } catch (e) {
+                // Si falla, recargar para restaurar el estado correcto
+                ref.read(facturasStateProvider.notifier).cargarFacturas();
+
                 if (context.mounted) {
                   _mostrarSnackBar(context, 'Error: $e', isError: true);
                 }
@@ -1281,18 +1323,22 @@ class FacturaMobile extends ConsumerWidget {
           );
         }
 
-        // Imprimir cada factura
+// Reemplazar el bucle de impresión en el método _imprimirTodasLasFacturas
+// Desde la línea "// Imprimir cada factura" hasta antes de "// Pausa final"
+
+// Imprimir cada factura
         for (int i = 0; i < facturas.length; i++) {
+          // Crear una copia exacta de la factura con la fecha modificada
           final facturaConFechaModificada = FacturaModel(
             id: facturas[i].id,
             clienteId: facturas[i].clienteId,
             nombreCliente: facturas[i].nombreCliente,
             direccionCliente: facturas[i].direccionCliente,
-            telefonoCliente: facturas[i].telefonoCliente,
+            telefonoCliente: facturas[i].telefonoCliente, // IMPORTANTE: Este campo debe copiarse
             negocioCliente: facturas[i].negocioCliente,
             observacionesCliente: facturas[i].observacionesCliente,
             rutaCliente: facturas[i].rutaCliente,
-            fecha: fechaParaImprimir,
+            fecha: fechaParaImprimir, // Esta es la única modificación
             items: facturas[i].items,
             estado: facturas[i].estado,
             total: facturas[i].total,
@@ -1449,13 +1495,10 @@ class FacturaMobile extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
             onPressed: () async {
-              final resultado = await Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const CrearFacturaPage()),
               );
-              if (resultado == true) {
-                await ref.read(facturasStateProvider.notifier).cargarFacturas();
-              }
             },
             tooltip: 'Nueva factura',
           ),
